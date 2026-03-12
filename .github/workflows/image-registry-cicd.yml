@@ -77,24 +77,19 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.CICID_SECRET }}
 
-      # 레지스트리 경로와 태그 조합
-      - name: 이미지 URI 준비
-        id: prepare-image
-        run: |
-          IMAGE_PATH="${IMAGE_REGISTRY}/$(echo "${{ matrix.image_name }}" | tr '[:upper:]' '[:lower:]')"
-          echo "image=${IMAGE_PATH}:${IMAGE_TAG}" >> "$GITHUB_OUTPUT"
-          echo "latest=${IMAGE_PATH}:latest" >> "$GITHUB_OUTPUT"
-
-      # Dockerfile 기반 이미지 빌드 및 GHCR 푸시
+      # 각 모듈 폴더로 이동해서 스크립트로 jar 빌드 → Docker 이미지 빌드 → GHCR push
       - name: 이미지 빌드 및 푸시
-        uses: docker/build-push-action@v5
-        with:
-          context: ${{ matrix.module_dir }}
-          push: true
-          tags: |
-            ${{ steps.prepare-image.outputs.image }}
-            ${{ steps.prepare-image.outputs.latest }}
-          platforms: linux/amd64,linux/arm64
+        shell: bash
+        working-directory: ${{ matrix.module_dir }}
+        env:
+          IMAGE_REGISTRY: ${{ env.IMAGE_REGISTRY }}
+          IMAGE_NAME: ${{ matrix.image_name }}
+          IMAGE_TAG: ${{ env.IMAGE_TAG }}
+          PUSH_IMAGE: "true"
+          LOAD_TO_MINIKUBE: "false"
+        run: |
+          ./scripts/build_jar.sh
+          ./scripts/build_docker.sh
 
       # Actions 화면에서 어떤 이미지가 올라갔는지 확인용 출력
       - name: 결과 출력
